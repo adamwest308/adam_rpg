@@ -11,15 +11,24 @@ public class playerController : MonoBehaviour {
     float jumpVelocity = 0;
     string state = "Movement";
     Animator anim;
+    Camera cam;
+    Health health;
+    public Vector3 checkpoint;
 
 	// Use this for initialization
 	void Start () {
         cc = GetComponent<CharacterController>();
         anim = GetComponent<Animator>();
+        cam = Camera.main;
+        health = GetComponent<Health>();
+        checkpoint = transform.position;
 	}
 	
 	// Update is called once per frame
 	void Update () {
+        if (Input.GetKeyDown(KeyCode.H)) {
+            health.TakeDamage(0);
+        }
         if (state == "Movement") {
             Movement();
             Jump();
@@ -39,8 +48,27 @@ public class playerController : MonoBehaviour {
         }
     }
 
+    void DealWeaponDamage() {
+        Vector3 center = transform.position + transform.forward + transform.up;
+        Vector3 halfExtents = new Vector3(0.5f, 1.0f, 0.5f);
+        Collider[] hits = Physics.OverlapBox(center, halfExtents, transform.rotation);
+        foreach (Collider hit in hits) {
+            Health otherHealth = hit.GetComponent<Health>();
+
+            if (otherHealth) {
+                otherHealth.TakeDamage(1f);
+            }
+        }
+    }
+
     void ReturnToMovement() {
         ChangeState("Movement");
+    }
+
+    void ReturnToCheckpoint() {
+        health.Reset();
+        ChangeState("Movement");
+        transform.position = checkpoint;
     }
 
     void Jump() {
@@ -53,11 +81,17 @@ public class playerController : MonoBehaviour {
         anim.SetTrigger(stateName);
     }
 
+    void onDeath() {
+        anim.SetTrigger("Break");
+    }
+
     void Movement() {
         float x = Input.GetAxisRaw("Horizontal");
         float z = Input.GetAxisRaw("Vertical");
 
         Vector3 direction = new Vector3(x, 0, z).normalized;
+        float cameraDirection = cam.transform.localEulerAngles.y;
+        direction = Quaternion.AngleAxis(cameraDirection, Vector3.up) * direction;
         Vector3 velocity = direction * moveSpeed * Time.deltaTime;
 
         float percentSpeed = velocity.magnitude / (moveSpeed * Time.deltaTime);
